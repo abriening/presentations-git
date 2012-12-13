@@ -4,9 +4,9 @@
   <head>
     <meta charset="utf-8">
 
-    <title>Title</title>
+    <title>Yes, Rebase - A comparison of merge and rebase workflows</title>
 
-    <meta name="description" content="Description">
+    <meta name="description" content="A comparison of merge and rebase workflows for git.">
     <meta name="author" content="Andrew Briening (abriening)">
 
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -34,6 +34,442 @@
 
       <!-- Any section element inside of this container is displayed as a slide -->
       <div class="slides">
+        <section>
+           <blockquote cite="http://typicalprogrammer.com/?p=143">&#8230; all meaningful operations can be expressed in terms of the rebase command. Once you figure that out it all makes sense.</blockquote>
+          <p><em>~ Linus Torvalds</em></p>
+        </section>
+
+        <section>
+          <h1>Yes, Rebase</h1>
+          <h3>A comparison of merge and rebase workflows</h3>
+          <p>
+            <small>Andrew Briening <a href="https://github.com/abriening">(abriening)</a></small>
+          </p>
+          <img src="images/git.png"/>
+        </section>
+
+        <section>
+          <h2>Prerequisites</h2>
+          <p> You are probably...</p>
+          <ul>
+            <li>a professional developer or designer</li>
+            <li>a user of Git, SVN or other revision control tool</li>
+            <li>familiar with git merge +/or rebase commands</li>
+          </ul>
+          <aside class="notes">
+            Not focusing on open-source project maintainers.
+            Depending on the size of the project they may have vastly different concerns, processes.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Content</h2>
+          <ul>
+            <li>Why use an SCM or care about history?</li>
+            <li>Review SVN workflows (for comparison)</li>
+            <li>Review +/- of merge workflows</li>
+            <li>Review +/- of rebase workflows</li>
+            <li>Tools &amp; Techniques</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Why Use Source Control?</h2>
+          <ul>
+            <li>Source backup?</li>
+            <li>Deployment tracking?</li>
+            <li>Ease collaboration?</li>
+            <li>&#8230;</li>
+          </ul>
+          <aside class="notes">
+            Ask for more reasons, there are many.
+          </aside>
+        </section>
+
+        <section>
+          <h2>We don't accept Spaghetti Code</h2>
+          <img src="images/dependency_graph.jpg"/>
+          <p><small><a href="http://thedailywtf.com/Articles/The-Enterprise-Dependency.aspx">thedailywtf</a></small></p>
+        </section>
+
+        <section>
+          <h2>Why accept spaghetti history?</h2>
+          <img src="images/spaghetti_graph.png"/>
+        </section>
+
+        <section>
+          <h2>Accountability</h2>
+          <p>You should know <strong>when</strong> and <strong>why</strong> any changes were made.</p>
+          <p>This requires a <strong>clean history</strong>.</p>
+          <p>But what does that <em>realy</em> mean?</p>
+          <p>When are you <em>cleaning</em> history, or <strong>destroying</strong> it?</p>
+          <p class="fragment">We'll come back to this later &#8230;</p>
+          <p><small><a href="http://www.mail-archive.com/dri-devel@lists.sourceforge.net/msg39091.html">notes on clean history</a></small></p>
+        </section>
+
+        <section>
+          <h2>Workflows</h2>
+          <img src="images/svn.png"/>
+          <img src="images/git.png"/>
+          <aside class="notes">
+            I'm going to cover a little SVN.
+            It nicely shows some of the bad techniques that have followed into git workflows.
+          </aside>
+        </section>
+
+        <section>
+          <h2>SVN Workflows</h2>
+          <p>SVN publishes the recommended usage in their <a href="http://svnbook.red-bean.com/">Svnbook</a>.</p>
+          <p>Git on the other hand &#8230;</p>
+          <pre><code>
+%> man git
+GIT(1)
+NAME
+       git - the stupid content tracker
+...
+          </code></pre>
+          <p class="fragment">We'll come back to this later &#8230;</p>
+
+          <aside class="notes">
+            Git really is just a framework to create your own SCM workflow.
+          </aside>
+        </section>
+
+        <section>
+          <h2>SVN: Merge-ish</h2>
+          <p>Use <code>svn update</code> to pull-down the changes from the remote and apply them to your local working copy.</p>
+          <pre><code>
+%> svn update
+Updating '.':
+Conflict discovered in 'sandwich.txt'.
+Select: (p) postpone, (df) diff-full, (e) edit,
+        (mc) mine-conflict, (tc) theirs-conflict,
+        (s) show all options: p
+C    sandwich.txt
+Updated to revision 2.
+Summary of conflicts:
+  Text conflicts: 1
+            </code></pre>
+          <p class="fragment">This usually leaves a messy set of conflicts if you have uncommitted changes.</p>
+          <p class="fragment">You then resolve <strong>all</strong> of the conflicts and attempt to commit again.</p>
+          <p><small><a href="http://svnbook.red-bean.com/en/1.7/svn-book.html">svn examples from svnbook</a></small></p>
+        </section>
+
+        <section>
+          <h2>SVN: Rebase-ish</h2>
+          <p>The friendlier technique outlined in the book is to use <code>svn status -u</code> to review the upstream files/commits.</p>
+          <pre><code>
+svn status -u -v
+M      *        44        23    sally     README
+M               44        20    harry     bar.c
+       *        44        35    harry     stuff/trout.c
+D               44        19    ira       stuff/fish.c
+A                0         ?     ?        stuff/things/bloo.h
+Status against revision:   46
+            </code></pre>
+          <p class="fragment">This allows you to then update and resolve files one at a time using <code>svn update stuff/trout.c</code>.</p>
+        </section>
+
+        <section>
+          <h2>SVN: Branches (Sqash-ish)</h2>
+          <ul>
+            <li>Merge Tracking added in v1.5; merges were previously maintained by the user</li>
+            <li>Recomended to merge often from trunk to the branch</li>
+            <li>These incremental merges are just to avoid <em>Merge Hell</em></li>
+            <li>Merge back to trunk is one large patch</li>
+            <li>Delete the branch</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Git Merge Workflows</h2>
+          <img src="images/git_merge.jpg"/>
+        </section>
+
+        <section>
+        <h2>Git-flow</h2>
+        <img src="images/git_flow.png"/>
+        </section>
+
+        <section>
+          <section>
+            <h2>Merge: Git-flow</h2>
+             <ul>
+              <li>Branch always</li>
+              <li><strong>master</strong>: deployed version history</li>
+              <li><strong>develop</strong>: <em>Next</em> to be deployed</li>
+              <li>Method for hotfixes to <srong>master</strong></li>
+              <li>Release branches</li>
+              <li>Tagged releases</li>
+          </section>
+          <section>
+            <h2>Merge: Git-flow</h2>
+             <ul>
+              <li><a href="http://nvie.com/posts/a-successful-git-branching-model/">Original Post</a></li>
+              <li><a href="https://github.com/nvie/gitflow">Git Extensions</a></li>
+            </ul>
+          </section>
+        </section>
+
+        <section>
+          <h2>Merge: Mashion Workflow</h2>
+           <ul>
+            <li>Modified git-flow but without git extensions</li>
+            <li>Throwaway integration branches for testing multiple feature branches</li>
+            <li>&#8230;</li>
+            <li><a href="http://mashion.net/">More info</a></li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Merge: Advantages &amp; Drawbacks</h2>
+          <ul>
+            <li>Yay! Can use <code>git branch --merged</code> to see if a branch is in master</li>
+            <li>Yay! Only one command to learn: <code>git merge</code></li>
+            <li>Boo! Merge conflicts are easy to ignore, all conflicts occur at once</li>
+            <li>Boo! Merge conflicts can repeat if long-lived branches are continually merged</li>
+            <li>Boo! Easier to create <em>Spaghetti History</em></li>
+            <li>Boo! <em>Ladder merges</em></li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Ladder Merges</h2>
+          <img src="images/ladder.png"/>
+          <ul>
+            <li><q cite="http://www.mail-archive.com/dri-devel@lists.sourceforge.net/msg39091.html">Don't merge upstream code at random points</q></li>
+            <li><q cite="http://www.mail-archive.com/dri-devel@lists.sourceforge.net/msg39091.html">Don't merge downstream code at random points either</q></li>
+            <li>The code you merge in should be for a specific purpose</li>
+            <li>At a specific point in the other branch's history</li>
+          </ul>
+          <p><small><a href="http://www.mail-archive.com/dri-devel@lists.sourceforge.net/msg39091.html">notes on clean history</a></small></p>
+        </section>
+
+        <section>
+          <h2>Git Rebase Workflows</h2>
+          <blockquote cite="http://typicalprogrammer.com/?p=143">&#8230; all meaningful operations can be expressed in terms of the rebase command. Once you figure that out it all makes sense.</blockquote>
+        </section>
+
+        <section>
+          <h2>No Love For Rebase</h2>
+          <div class="fragment">
+            <img src="images/rebase.jpg" />
+            <p><small><a href="http://forge38.com">thanks r38y</a></small></p>
+          </div>
+        </section>
+
+        <section>
+          <h2>Rebase: Hashrocket Worflow</h2>
+          <p>With a feature branch:</p>
+          <pre><code>
+* 3dcd585 Adding Comment model, migrations, spec
+* 9f5c362 Adding Comment controller, helper, spec
+* dcd4813 Adding Comment relationship with Post
+* 977a754 Comment belongs to a User
+* 9ea48e3 Comment form on Post show page
+          </pre></code>
+
+          <p class="fragment">It will get merged as one commit with a message like:</p>
+
+          <pre class="fragment"><code>
+[#3275] User Can Add A Comment To a Post
+
+* Adding Comment model, migrations, spec
+* Adding Comment controller, helper, spec
+* Adding Comment relationship with Post
+* Comment belongs to a User
+* Comment form on Post show page
+          </pre></code>
+
+          <ul class="fragment">
+            <li>Squash workflow</li>
+            <li>Branch commits destroyed; applied as one patch to master</li>
+            <li>Look familiar?</li>
+            <li><a href="http://reinh.com/blog/2009/03/02/a-git-workflow-for-agile-teams.html">More info</a></li>
+          </ul>
+          <aside class="notes">
+            This process can clean up things like ladder merges and other merge artifacts.
+            This process leaves a pretty history in master.
+            But it destroys individual branch commits.
+            Basically the same as svn merge but the branch history it can be garbage collected.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Rebase: Neomind Workflow</h2>
+          <p>Modified git-flow without the extensions.</p>
+          <ul>
+            <li class="fragment">Master => Production, Develop => Master</li>
+            <li class="fragment">Timestamped release tags, <code>git datetag</code></li>
+            <li class="fragment"><code>release-2012-12-11T01.39.50</code></li>
+            <li class="fragment">Throwaway integration branches for testing multiple feature branches</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Rebase: Neomind Workflow</h2>
+          <p>Modified git-flow without the extensions.</p>
+          <ul>
+            <li class="fragment">Rebase feature and bug branches against master before merging</li>
+            <li class="fragment">Use octopus merge for several branches at once</li>
+            <li class="fragment">Use no-fast-forward for several related commits</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>A Rebased History Is Boring</h2>
+          <img src="images/straight.png"/>
+        </section>
+
+        <section>
+          <h2>Delineate Branch History With No-Fast-Forward</h2>
+          <img src="images/no_fast_forward.png"/>
+        </section>
+
+        <section>
+          <h2>Octopus Merges Are Fun</h2>
+          <img src="images/octopus.png"/>
+        </section>
+
+        <section>
+          <h2>Rebase: Advantages &amp; Drawbacks</h2>
+          <ul>
+            <li>Yay! A clean history!</li>
+            <li>Yay! Rebase conflicts occur <strong>one at a time</strong></li>
+            <li>Yay! No <em>Ladder merges</em></li>
+            <li>Boo! More commands to learn</li>
+            <li>Boo! Recovering from mistakes is difficult for beginners</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Long-Lived Branches</h2>
+          <p>What about long-lived branches?</p>
+          <p class="fragment">Don't use long-lived branches</p>
+        </section>
+
+        <section>
+          <h2>Long-Lived Branches</h2>
+          <p>No, really, what about long-lived branches?</p>
+          <ul class="fragment">
+            <li>Decompose your features into negotiable chunks</li>
+            <li>Sometimes unavoidable. ex re-design</li>
+            <li>Merge may be the best solution&#8230;</li>
+            <li>but avoid ladders, merge with purpose</li>
+            <li>Assign a gatekeeper</li>
+            <li><a href="http://martinfowler.com/bliki/FeatureToggle.html">Feature Toggle</a></li>
+            <li>A <em>Microcosm Workflow</em></li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>The Microcosm Workflow</h2>
+          <pre><code>
+microcosm/next        » ancestor of master
+microcosm/feature-456 » decendent of microcosm/next
+microcosm/bug-123     » decendent of microcosm/next
+microcosm/integration » throw-away integration
+          </pre></code>
+          <ul>
+            <li><strong>next</strong> acts like master</li>
+            <li>Always branch from <strong>next</strong></li>
+            <li>Features and bugs are merged into <strong>next</strong></li>
+            <li>Create integration branches for staging &amp; testing</li>
+          </ul>
+          <aside class="notes">
+            I had previously named this our "Collaboration Branch" strategy, but everyone I've inflicted this on hates me now and doesn't want to collaborate with me again.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Safety Equipment</h2>
+          <p>Some tools &amp; techniques to keep you safe while merging &amp; rebasing.</p>
+        </section>
+
+        <section>
+          <h2>Throw-away Integration Branches</h2>
+          <blockquote cite="http://www.kernel.org/pub/software/scm/git/docs/gitworkflows.html#_throw_away_integration">To test the interaction of several topics, merge them into a throw-away branch. You must never base any work on such a branch!</blockquote>
+          <p><small><a href="http://www.kernel.org/pub/software/scm/git/docs/gitworkflows.html#_throw_away_integration">More info</a></small></p>
+        </section>
+
+        <section>
+          <h2>Reuse Recorded Resolution</h2>
+          <p>If you start using throw-away integration branches then <code>git rerere</code> will be your new best friend.</p>
+
+          <pre><code>
+%> git merge i18n-world
+Auto-merging hello.rb
+CONFLICT (content): Merge conflict in hello.rb
+Recorded preimage for 'hello.rb'
+Automatic merge failed; fix conflicts and then commit the result.
+          </pre></code>
+
+          <pre class="fragment"><code>
+%> git add hello.rb
+%> git commit
+Recorded resolution for 'hello.rb'.
+[master 68e16e5] Merge branch 'i18n'
+          </pre></code>
+
+          <p><small><a href="http://git-scm.com/2010/03/08/rerere.html">More info</a></small></p>
+        </section>
+
+        <section>
+          <h2>No Fast-Forward</h2>
+          <p><code>git merge --no-ff</code></p>
+          <img src="images/no_fast_forward.png"/>
+        </section>
+
+        <section>
+          <h2>Don't Fear Destroying History</h2>
+          <p>You can always make more branches.</p>
+          <pre><code>
+git checkout -b feature-123-b feature-123
+git rebase master
+          </pre></code>
+        </section>
+
+        <section>
+          <h2>Reflog</h2>
+          <p>And ther is always the reflog</p>
+          <p><code>git reflog</code></p>
+          <pre><code>
+b64f807 HEAD@{0}: commit: Silence warning about VERSION...
+a2083ca HEAD@{1}: commit: Adds gem dependency on json 1...
+adc1095 HEAD@{2}: commit: Adds backup example
+ef1c4ab HEAD@{3}: commit: Updates validations &amp; error m...
+cf681af HEAD@{4}: commit: Updates validations &amp; error m...
+e97f1f3 HEAD@{5}: commit: Updates carpenter binary to e...
+d9ac66a HEAD@{6}: checkout: moving from validation_unit...
+3322ef8 HEAD@{7}: commit: Unit tests for validation
+d9ac66a HEAD@{8}: checkout: moving from experimental to...
+d9ac66a HEAD@{9}: checkout: moving from d9ac66a69cabee1...
+d9ac66a HEAD@{10}: pull : Fast-forward
+c5bd0ab HEAD@{11}: merge allow-alternate-definitions-di...
+          </pre></code>
+          <p><code>git reset --hard a2083ca</code></p>
+        </section>
+
+        <section>
+          <h2>Stash / Interrupted Workflow</h2>
+          <p><code>git stash; git stash pop</code></p>
+          <p><code>git save; git restore</code></p>
+          <pre><code>
+# .gitconfig
+[alias]
+  save = !git add . &amp;&amp; git commit -a -m"WIP"
+  restore = !git reset --soft HEAD^ &amp;&amp; git reset
+          </pre></code>
+          <p><small><a href="http://henrik.nyh.se/octopress/2009/02/git-reset-soft-as-stash-replacement-and-undo/">More info</a></small></p>
+        </section>
+
+        <section>
+          <h2>Just Remember, Git Is Stupid</h2>
+
+          <img src="images/stupid.jpg"/>
+
+          <p>Pay attention &amp; be safe.</p>
+        </section>
 
         <!--
         <section>
@@ -50,6 +486,10 @@
           </aside>
         </section>
         -->
+
+        <section>
+          <h1>HEAD@{0}</h1>
+        </section>
 
       </div>
 
